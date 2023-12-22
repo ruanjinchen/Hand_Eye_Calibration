@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.2" halcon_version="23.05.0.0">
+<procedure name="main">
+<interface/>
+<body>
+<l>dev_open_window(0, 0, 1920/2, 1080/2, 'black', WindowHandle)</l>
+<c>*读取图像</c>
+<l>read_image (Image, './test.png')</l>
+<c>*在图像上手动绘制ROI，即选择绘制的模板区域</c>
+<l>draw_rectangle1 (WindowHandle, Row1, Column1, Row2, Column2)</l>
+<c>*将绘制的模板区域生成矩形</c>
+<l>gen_rectangle1 (Rectangle, Row1, Column1, Row2, Column2)</l>
+<c>*提取出区域的图像，作为模板图像</c>
+<l>reduce_domain (Image, Rectangle, ImageReduced1)</l>
+<c>*创建模板</c>
+<l>create_shape_model (ImageReduced1, 10, -3.14, 3.14, 'auto', 'auto', 'use_polarity', 'auto', 'auto', ModelID)</l>
+<c>*将创建的模板存成指定路径的文件</c>
+<l>write_shape_model (ModelID, 'test.shm')</l>
+<l>stop()</l>
+<c></c>
+<l>dev_close_window()</l>
+<l>dev_open_window(0, 0, 1920/2, 1080/2, 'black', WindowHandle)</l>
+<c>*读取图像</c>
+<l>read_image (Image1, './Image2D.png')</l>
+<c>*读取模板文件</c>
+<l>read_shape_model ('./Model/test.shm', ModelID1)</l>
+<c>*在图像中查找模板，并返回模板的中心坐标</c>
+<l>find_shape_model (Image1, ModelID1 , -3.14, 3.14, 0.2, 1, 0.5, 'least_squares_very_high', 10, 0.9, Row1, Column1, Angle1, Score1)</l>
+<c>*匹配到模板</c>
+<l>if(|Row1|&gt;=1)</l>
+<c>*在图像中显示模板</c>
+<l>    dev_display_shape_matching_results (ModelID1, 'red', Row1, Column1, Angle1, 1, 1, 0)</l>
+<l>endif</l>
+</body>
+<docu id="main">
+<parameters/>
+</docu>
+</procedure>
+</hdevelop>

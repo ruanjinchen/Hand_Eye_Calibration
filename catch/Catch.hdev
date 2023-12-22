@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.2" halcon_version="23.05.0.0">
+<procedure name="main">
+<interface/>
+<body>
+<c>**************************************************************************0.TCP连接机械臂，恢复至初始位姿</c>
+<l>* Protocol := 'TCP4'</l>
+<l>* Timeout := 3600</l>
+<l>* open_socket_accept (7777, ['protocol','timeout'], [Protocol,Timeout], AcceptingSocket)</l>
+<l>* tuple_regexp_match (Protocol, 'TCP|HALCON', BaseProtocol)</l>
+<l>* if (BaseProtocol == 'TCP' or BaseProtocol == 'HALCON')</l>
+<l>*     dev_error_var (Error, 1)</l>
+<l>*     dev_set_check ('~give_error')</l>
+<l>*     OpenStatus := 5</l>
+<l>*     while (OpenStatus != 2)</l>
+<l>*         socket_accept_connect (AcceptingSocket, 'auto', Socket)</l>
+<l>*         OpenStatus := Error</l>
+<l>*     endwhile</l>
+<l>*     dev_set_check ('give_error')</l>
+<l>*     set_socket_param (Socket, 'timeout', Timeout)</l>
+<l>* else</l>
+<l>*     Socket := AcceptingSocket</l>
+<l>* endif</l>
+<l>* get_socket_param (Socket, 'address_info', Address1)</l>
+<l>* receive_data(Socket,'z', Data, From)</l>
+<l>* To:=[From[0],From[1]]</l>
+<l>* send_data (Socket, 'z', '1,-0.188,-0.129,0.684,-179,0,-90', To)</l>
+<c>**************************************************************************1.数据准备</c>
+<c>*关闭程序计数器，变量更新，图像更新窗口</c>
+<l>dev_update_off ()</l>
+<c>*校正图像路径</c>
+<l>ImageNameStart := './Pictures/'</l>
+<c>*机器人工具坐标系的位姿</c>
+<l>DataNameStart := './Pose/robot_pose_'</l>
+<c>*模板位置</c>
+<l>TemplateNameStart :='./Model/'</l>
+<c>*校正图像的数目</c>
+<l>NumImages := 22</l>
+<c></c>
+<l>* open_framegrabber ('MediaFoundation', 0, 0, 0, 0, 0, 0, 'progressive', -1, 'default', -1,  'false', 'default', \
+                   'Intel(R)_RealSense(TM)_Depth_Camera_435i_RGB_vid_8086&amp;pid_0b3a&amp;mi_03#7&amp;33d1e668&amp;0&amp;0003', 0, -1, AcqHandle)</l>
+<l>* grab_image_start (AcqHandle, -1)</l>
+<l>* grab_image_async (Image, AcqHandle, -1)</l>
+<l>* write_image(Image, 'png', 0, './Image2D')</l>
+<l>* close_framegrabber (AcqHandle)</l>
+<c></c>
+<c>*读取一张图像</c>
+<l>* read_image (Image, ImageNameStart + '00')</l>
+<c>*获取图像的大小</c>
+<l>* get_image_size (Image, Width, Height)</l>
+<c>*打开新窗口</c>
+<l>* dev_open_window_fit_image (Image, 0, 0, Width/2, Height/2, WindowHandle)</l>
+<c>*设置区域 填充方式为边缘</c>
+<l>* dev_set_draw ('margin')</l>
+<c>*设置线宽度</c>
+<l>* dev_set_line_width (2)</l>
+<c>*设置字体信息:字体大小:14;字体类型:mono;粗体;</c>
+<l>* set_display_font (WindowHandle, 14, 'mono', 'true', 'false')</l>
+<c>**************************************************************************2.读取手眼标定结果</c>
+<c>* 读取手眼标定后的摄像机内部参数</c>
+<l>* read_cam_par (DataNameStart + 'final_campar.dat', CamParam)</l>
+<c>**************************************************************************3.设置参考坐标系,并获取抓取位置</c>
+<c>*校正板描述文件</c>
+<l>* CalplateFile := 'halcon.descr'</l>
+<c>*定义参考坐标系</c>
+<l>* define_reference_coord_system (ImageNameStart + '05', CamParam, CalplateFile, WindowHandle, PoseRef)</l>
+<c>*将参考坐标系位姿转换为其次变换矩阵</c>
+<l>* pose_to_hom_mat3d (PoseRef, cam_H_ref)</l>
+<l>* Message := '定义参考坐标系系统'</l>
+<l>* Message[1] := '基于标定物体坐标系'</l>
+<l>* disp_message (WindowHandle, Message, 'window', 12, 12, 'black', 'true')</l>
+<l>* disp_continue_message (WindowHandle, 'black', 'true')</l>
+<l>* stop()</l>
+<l>* dev_update_off ()</l>
+<c>*关闭打开的窗口</c>
+<l>* dev_close_window ()</l>
+<c>*打开新的窗口</c>
+<l>* dev_open_window(0, 0, Width/2, Height/2, 'black', WindowHandle1)</l>
+<c>*读取图像</c>
+<l>* read_image (Image1, 'Image2D')</l>
+<l>* dev_display(Image1)</l>
+<c>*读取模板文件</c>
+<l>* read_shape_model (TemplateNameStart+'test.shm', ModelID1)</l>
+<c>*在图像中查找模板，并返回模板的中心坐标</c>
+<l>* find_shape_model (Image1, ModelID1, -0.39, 0.39, 0.6, 1, 0.1, 'least_squares_very_high', 8, 0.1, Row1, Column1, Angle1, Score1)</l>
+<l>* Angle2:=Angle1*180/3.1415926</l>
+<c>*匹配到模板</c>
+<c>*在图像中显示模板</c>
+<l>* dev_display_shape_matching_results (ModelID1, 'red', Row1, Column1, Angle1, 1, 1, 0)</l>
+<c>*显示参考坐标系</c>
+<l>* disp_3d_coord_system (WindowHandle1, CamParam, PoseRef, 0.01)</l>
+<c>*获取零件4个交点的位置坐标</c>
+<l>* CornersRow := Row1</l>
+<l>* CornersCol :=Column1</l>
+<c>**************************************************************************4.在摄像机坐标系下,获取抓取位姿</c>
+<c>*把角点转换到参考坐标系并获取抓取位置</c>
+<c>*PoseRef为零件坐标系位姿，将零件坐标系位姿从图像坐标系转换为世界坐标系下。</c>
+<l>* image_points_to_world_plane (CamParam, PoseRef, CornersRow, CornersCol, 'm', CornersX_ref, CornersY_ref)</l>
+<c>*零件的中心坐标</c>
+<l>* CenterPointX_ref := CornersX_ref</l>
+<l>* CenterPointY_ref := CornersY_ref</l>
+<c>*零件抓取位置的坐标和角度</c>
+<l>* GraspPointsX_ref := CornersX_ref</l>
+<l>* GraspPointsY_ref := CornersY_ref</l>
+<l>* GraspPhiZ_ref := -Angle1</l>
+<c>*对参考坐标系进行平移和旋转变换</c>
+<l>* affine_trans_point_3d (cam_H_ref, GraspPointsX_ref, GraspPointsY_ref, 0, GraspPointsX_cam, GraspPointsY_cam, GraspPointsZ_cam)</l>
+<c>*将抓取点位置投影到图像坐标系下</c>
+<l>* project_3d_point (GraspPointsX_cam, GraspPointsY_cam, GraspPointsZ_cam, CamParam, GraspPointsRow, GraspPointsCol)</l>
+<c>*显示抓取位置G1</c>
+<l>* display_grasping_points (GraspPointsRow, GraspPointsCol, WindowHandle1)</l>
+<l>* disp_message (WindowHandle1, '找到抓取点', 'window', -1, -1, 'black', 'true')</l>
+<l>* disp_continue_message (WindowHandle1, 'black', 'true')</l>
+<c>*构建参考坐标系到零件坐标系的齐次变换矩阵</c>
+<l>* hom_mat3d_identity (HomMat3DIdentity)</l>
+<l>* hom_mat3d_rotate (HomMat3DIdentity, GraspPhiZ_ref, 'z', 0, 0, 0, HomMat3D_RZ_Phi)</l>
+<l>* hom_mat3d_translate (HomMat3D_RZ_Phi, CenterPointX_ref, CenterPointY_ref, 0, ref_H_grasp)</l>
+<c>*摄像机坐标系下参考坐标系位姿和参考坐标系下零件抓取坐标位姿相乘，从而获取摄像机坐标系下抓取位置位姿</c>
+<l>* hom_mat3d_compose (cam_H_ref, ref_H_grasp, cam_H_grasp)</l>
+<l>* hom_mat3d_to_pose (cam_H_grasp, ObjInCamPose)</l>
+<l>* hom_mat3d_to_pose (ref_H_grasp, GripperInRefPose)</l>
+<c></c>
+<c></c>
+<c>*******************************************YOLO测试用，输入相机坐标系下的物体抓取坐标</c>
+<l>create_pose(0, 0, 0.342, 0, 0, -90, 'Rp+T', 'abg', 'point', ObjInCamPose)</l>
+<c>**************************************************************************************</c>
+<c></c>
+<c></c>
+<c>*设置输出对象的颜色数</c>
+<l>* dev_set_colored (3)</l>
+<c>*显示零件坐标系</c>
+<l>* disp_3d_coord_system (WindowHandle1, CamParam, ObjInCamPose, 0.01)</l>
+<l>* Message := '确定夹持器姿势'</l>
+<l>* Message[1] := '通过参考坐标系'</l>
+<l>* disp_message (WindowHandle1, Message, 'window', 12, 12, 'black', 'true')</l>
+<l>* disp_continue_message (WindowHandle1, 'black', 'true')</l>
+<l>* stop()</l>
+<l>* dev_close_window()</l>
+<c>**************************************************************************5.在机器人坐标系下转换抓取位姿</c>
+<l>read_pose(DataNameStart + 'final_pose_cam_tool.dat', ToolInCamPose)</l>
+<l>read_pose(DataNameStart + 'final_pose_base_calplate.dat', CalObjInBasePose)</l>
+<l>read_pose(DataNameStart + 'final_pose_base_plane.dat', PlaneInBasePose)</l>
+<l>read_pose(DataNameStart + 'final_pose_tool_gripper.dat', GripperInToolPose)</l>
+<l>read_pose(DataNameStart + 'tool_base_pose_1.dat', ToolInBasePose)</l>
+<l>convert_pose_type(ObjInCamPose, 'Rp+T', 'abg', 'point', ObjInCamPose)</l>
+<c></c>
+<l>pose_invert (ToolInCamPose, CamInToolPose)</l>
+<c></c>
+<c></c>
+<l>pose_to_hom_mat3d(ToolInBasePose, HomMat3D1)</l>
+<l>pose_to_hom_mat3d(CamInToolPose, HomMat3D2)</l>
+<l>hom_mat3d_compose(HomMat3D1, HomMat3D2, HomMat3DCompose)</l>
+<l>hom_mat3d_to_pose(HomMat3DCompose, Pose)</l>
+<l>convert_pose_type(Pose, 'Rp+T', 'abg', 'point', PoseOut)</l>
+<c></c>
+<c></c>
+<l>pose_compose (ToolInBasePose, CamInToolPose, CamInBasePose)</l>
+<l>pose_compose (CamInBasePose, ObjInCamPose, ObjInBasePose)</l>
+<l>pose_compose(ObjInBasePose, GripperInToolPose, PoseFinal)</l>
+<c>**************************************************************************6.转换位姿类型</c>
+<c>*转换机器人的位姿类型（可选多种类型）</c>
+<l>convert_pose_type (PoseFinal, 'Rp+T', 'abg', 'point', PoseRobotGrasp_ZYX)</l>
+<c>**************************************************************************7.发送至机器人</c>
+<l>a :=PoseRobotGrasp_ZYX[0]*1000</l>
+<l>b :=PoseRobotGrasp_ZYX[1]*1000+60-40</l>
+<l>c :=PoseRobotGrasp_ZYX[2]*1000</l>
+<l>d :=PoseRobotGrasp_ZYX[3]</l>
+<l>e :=PoseRobotGrasp_ZYX[4]</l>
+<l>f :=PoseRobotGrasp_ZYX[5]</l>
+<l>move:='('+'1'+','+a+','+b+','+c+','+d+','+e+','+f+')'</l>
+<c></c>
+<c>******Base在World</c>
+<l>create_pose(0.12747, -0.02950, 0.09012, 0, -90, 90, 'Rp+T', 'abg', 'point', Pose_2)</l>
+<l>pose_to_hom_mat3d(Pose_2, base_in_world)</l>
+<c></c>
+<c>******TCP在Base下</c>
+<l>create_pose(a/1000,b/1000,c/1000,d,e,f, 'Rp+T', 'abg', 'point', Pose_3)</l>
+<l>pose_to_hom_mat3d(Pose_3, tcp_in_base)</l>
+<c></c>
+<l>hom_mat3d_compose(base_in_world, tcp_in_base, tcp_in_world)</l>
+<l>hom_mat3d_to_pose(tcp_in_world, PoseOut2)</l>
+<l>convert_pose_type(PoseOut2, 'Rp+T', 'abg', 'point', TcpInWorld)</l>
+<c></c>
+<l>A :=TcpInWorld[0]</l>
+<l>B :=TcpInWorld[1]</l>
+<l>C :=TcpInWorld[2]</l>
+<l>D :=TcpInWorld[3]</l>
+<l>E :=TcpInWorld[4]</l>
+<l>F :=TcpInWorld[5]</l>
+<c></c>
+<c></c>
+<l>Dicts := []</l>
+<l>create_dict(DictHandle)</l>
+<l>Dicts[0] := DictHandle</l>
+<l>set_dict_tuple (DictHandle, 'X', A)</l>
+<l>set_dict_tuple (DictHandle, 'Y', B)</l>
+<l>set_dict_tuple (DictHandle, 'Z', C)</l>
+<l>set_dict_tuple (DictHandle, 'RX', D)</l>
+<l>set_dict_tuple (DictHandle, 'RY', E)</l>
+<l>set_dict_tuple (DictHandle, 'RZ', F)</l>
+<l>move1:='('+'1'+','+A+','+B+','+C+','+D+','+E+','+F+')'</l>
+<c></c>
+<l>* write_dict(DictHandle, 'G:/Undergraduated/中科院/ProjectX/11.手眼标定/catch/Gripper/pose.json', 'file_type', 'json')</l>
+<c></c>
+<c>*'(1,-355.96,-149.83,-34.49,-107.05,-88.72,18.08)'</c>
+<c>*修改后的拍摄位姿</c>
+<l>* send_data (Socket, 'z', move, To)</l>
+</body>
+<docu id="main">
+<parameters/>
+</docu>
+</procedure>
+<procedure name="define_reference_coord_system">
+<interface>
+<ic>
+<par name="ImageName" base_type="ctrl" dimension="0"/>
+<par name="CamParam" base_type="ctrl" dimension="0"/>
+<par name="CalplateFile" base_type="ctrl" dimension="0"/>
+<par name="WindowHandle" base_type="ctrl" dimension="0"/>
+</ic>
+<oc>
+<par name="PoseCamRef" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<l>read_image (RefImage, ImageName)</l>
+<l>dev_display (RefImage)</l>
+<l>caltab_points (CalplateFile, X, Y, Z)</l>
+<c>* parameter settings for find_caltab and find_marks_and_pose</c>
+<l>SizeGauss := 3</l>
+<l>MarkThresh := 100</l>
+<l>MinDiamMarks := 1</l>
+<l>StartThresh := 160</l>
+<l>DeltaThresh := 1</l>
+<l>MinThresh := 8</l>
+<l>Alpha := 1</l>
+<l>MinContLength := 15</l>
+<l>MaxDiamMarks := 500</l>
+<l>find_caltab (RefImage, Caltab, CalplateFile, SizeGauss, MarkThresh, MinDiamMarks)</l>
+<l>find_marks_and_pose (RefImage, Caltab, CalplateFile, CamParam, StartThresh, DeltaThresh, MinThresh, Alpha, MinContLength, MaxDiamMarks, RCoord, CCoord, PoseCamRef)</l>
+<l>disp_3d_coord_system (WindowHandle, CamParam, PoseCamRef, 0.01)</l>
+<l>return ()</l>
+</body>
+<docu id="define_reference_coord_system">
+<short lang="en_US">defines reference coordinate system by the position of the calibration plate in an image</short>
+<short lang="zh_CN">defines reference coordinate system by the position of the calibration plate in an image</short>
+<parameters>
+<parameter id="CalplateFile"/>
+<parameter id="CamParam"/>
+<parameter id="ImageName"/>
+<parameter id="PoseCamRef"/>
+<parameter id="WindowHandle"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="display_grasping_points">
+<interface>
+<ic>
+<par name="RowGraspPoints" base_type="ctrl" dimension="0"/>
+<par name="ColGraspPoints" base_type="ctrl" dimension="0"/>
+<par name="WindowHandle" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>dev_set_color ('cyan')</l>
+<l>gen_cross_contour_xld (GraspingPoints, RowGraspPoints, ColGraspPoints, 10, 0.785398)</l>
+<l>dev_display (GraspingPoints)</l>
+<c></c>
+<l>return ()</l>
+</body>
+<docu id="display_grasping_points">
+<short lang="en_US">displays the grasping points</short>
+<short lang="zh_CN">displays the grasping points</short>
+<parameters>
+<parameter id="ColGraspPoints"/>
+<parameter id="RowGraspPoints"/>
+<parameter id="WindowHandle"/>
+</parameters>
+</docu>
+</procedure>
+</hdevelop>
