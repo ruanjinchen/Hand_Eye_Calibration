@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.2" halcon_version="23.05.0.0">
+<procedure name="main">
+<interface/>
+<body>
+<l>dev_update_off ()</l>
+<l>ImageNameStart := './Pictures/'</l>
+<l>DataNameStart := './Pose/robot_pose_'</l>
+<l>NumImages := 23</l>
+<c></c>
+<l>read_image (Image, ImageNameStart + '00')</l>
+<l>get_image_size (Image, Width, Height)</l>
+<c></c>
+<l>dev_close_window ()</l>
+<l>dev_open_window (0, 0, Width/2, Height/2, 'black', WindowHandle)</l>
+<l>dev_set_line_width (2)</l>
+<l>dev_set_draw ('margin')</l>
+<l>dev_display (Image)</l>
+<c></c>
+<l>set_display_font (WindowHandle, 14, 'mono', 'true', 'false')</l>
+<c></c>
+<l>CalTabFile := 'halcon.descr'</l>
+<c></c>
+<l>read_cam_par (DataNameStart + 'start_campar.cal', StartCamParam)</l>
+<l>create_calib_data ('hand_eye_stationary_cam', 1, 1, CalibDataID)</l>
+<l>set_calib_data_cam_param (CalibDataID, 0, [], StartCamParam)</l>
+<l>set_calib_data_calib_object (CalibDataID, 0, CalTabFile)</l>
+<l>set_calib_data (CalibDataID, 'model', 'general', 'optimization_method', 'nonlinear')</l>
+<l>disp_message (WindowHandle, 'The calibration data model was created', 'window', 12, 12, 'black', 'true')</l>
+<l>disp_continue_message (WindowHandle, 'black', 'true')</l>
+<l>stop ()</l>
+<l>for I := 0 to NumImages - 1 by 1</l>
+<l>    read_image (Image, ImageNameStart + I$'02d')</l>
+<c></c>
+<l>    find_calib_object (Image, CalibDataID, 0, 0, I, [], [])</l>
+<l>    get_calib_data_observ_contours (Caltab, CalibDataID, 'caltab', 0, 0, I)</l>
+<l>    get_calib_data_observ_points (CalibDataID, 0, 0, I, RCoord, CCoord, Index, CalObjInCamPose)</l>
+<c>    </c>
+<l>    dev_set_color ('green')</l>
+<l>    dev_display (Image)</l>
+<l>    dev_display (Caltab)</l>
+<l>    dev_set_color ('yellow')</l>
+<l>    disp_cross (WindowHandle, RCoord, CCoord, 6, 0)</l>
+<l>    dev_set_colored (3)</l>
+<l>    disp_3d_coord_system (WindowHandle, StartCamParam, CalObjInCamPose, 0.01)</l>
+<l>    read_pose (DataNameStart + I$'02d' + '.dat', ToolInBasePose)</l>
+<l>    set_calib_data (CalibDataID, 'tool', I, 'tool_in_base_pose', ToolInBasePose)</l>
+<c></c>
+<l>*     disp_message (WindowHandle, 'Extracting data from calibration image ' + (I + 1) + ' of ' + NumImages, 'window', 12, 12, 'black', 'true')</l>
+<l>*     disp_continue_message (WindowHandle, 'black', 'true')</l>
+<l>*     stop ()</l>
+<l>endfor</l>
+<l>disp_message (WindowHandle, 'All relevant data has been set in the calibration data model', 'window', 12, 12, 'black', 'true')</l>
+<l>disp_continue_message (WindowHandle, 'black', 'true')</l>
+<l>* wait_seconds(2)</l>
+<l>stop ()</l>
+<c></c>
+<l>check_hand_eye_calibration_input_poses (CalibDataID, 0.05, 0.005, Warnings)</l>
+<l>if (|Warnings| != 0)</l>
+<l>    dev_inspect_ctrl (Warnings)</l>
+<l>    stop ()</l>
+<l>endif</l>
+<c></c>
+<l>dev_display (Image)</l>
+<l>disp_message (WindowHandle, 'Performing the hand-eye calibration', 'window', 12, 12, 'black', 'true')</l>
+<l>calibrate_hand_eye (CalibDataID, Errors)</l>
+<l>get_calib_data (CalibDataID, 'model', 'general', 'camera_calib_error', CamCalibError)</l>
+<l>get_calib_data (CalibDataID, 'camera', 0, 'params', CamParam)</l>
+<l>get_calib_data (CalibDataID, 'camera', 0, 'base_in_cam_pose', BaseInCamPose)</l>
+<l>get_calib_data (CalibDataID, 'calib_obj', 0, 'obj_in_tool_pose', ObjInToolPose)</l>
+<l>try</l>
+<l>    write_cam_par (CamParam, DataNameStart + 'final_campar.dat')</l>
+<l>    write_pose (BaseInCamPose, DataNameStart + 'final_pose_cam_base.dat')</l>
+<l>    write_pose (ObjInToolPose, DataNameStart + 'final_pose_tool_calplate.dat')</l>
+<l>catch (Exception)</l>
+<l>endtry</l>
+<c></c>
+<l>disp_results (WindowHandle, CamCalibError, Errors)</l>
+<l>disp_continue_message (WindowHandle, 'black', 'true')</l>
+<l>* wait_seconds(2)</l>
+<l>stop ()</l>
+<c></c>
+<l>query_calib_data_observ_indices (CalibDataID, 'camera', 0, CalibObjIdx, PoseIds)</l>
+<l>for I := 0 to NumImages - 1 by 1</l>
+<l>    read_image (Image, ImageNameStart + I$'02d')</l>
+<l>    get_calib_data (CalibDataID, 'tool', PoseIds[I], 'tool_in_base_pose', ToolInBasePose)</l>
+<l>    dev_display (Image)</l>
+<l>    calc_calplate_pose_stationarycam (ObjInToolPose, BaseInCamPose, ToolInBasePose, CalObjInCamPose)</l>
+<l>    dev_set_colored (3)</l>
+<l>    disp_3d_coord_system (WindowHandle, CamParam, CalObjInCamPose, 0.01)</l>
+<l>    Message := 'Using the calibration results to display the'</l>
+<l>    Message[1] := 'coordinate system in image ' + (I + 1) + ' of ' + NumImages</l>
+<l>    disp_message (WindowHandle, Message, 'window', 12, 12, 'black', 'true')</l>
+<l>    if (I &lt; NumImages - 1)</l>
+<l>        disp_continue_message (WindowHandle, 'black', 'true')</l>
+<l>*         wait_seconds(2)</l>
+<l>        stop ()</l>
+<l>    endif</l>
+<l>endfor</l>
+<c></c>
+<l>clear_calib_data (CalibDataID)</l>
+<l>ObjInCamPose := CalObjInCamPose</l>
+<l>pose_invert (BaseInCamPose, CamInBasePose)</l>
+<l>pose_compose (CamInBasePose, ObjInCamPose, ObjInBasePose)</l>
+</body>
+<docu id="main">
+<parameters/>
+</docu>
+</procedure>
+<procedure name="calc_calplate_pose_stationarycam">
+<interface>
+<ic>
+<par name="CalObjInToolPose" base_type="ctrl" dimension="0"/>
+<par name="BaseInCamPose" base_type="ctrl" dimension="0"/>
+<par name="ToolInBasePose" base_type="ctrl" dimension="0"/>
+</ic>
+<oc>
+<par name="CalObjInCamPose" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<c>* CalObjInCamPose = cam_H_calplate = cam_H_base * base_H_tool * tool_H_calplate</c>
+<c>*                                  = BaseInCamPose*ToolInBasePose*CalObjInToolPose</c>
+<l>pose_compose (BaseInCamPose, ToolInBasePose, ToolInCamPose)</l>
+<l>pose_compose (ToolInCamPose, CalObjInToolPose, CalObjInCamPose)</l>
+<l>return ()</l>
+</body>
+<docu id="calc_calplate_pose_stationarycam">
+<short lang="en_US">compute cam_H_calplate from hand-eye calibration results</short>
+<parameters>
+<parameter id="BaseInCamPose"/>
+<parameter id="CalObjInCamPose"/>
+<parameter id="CalObjInToolPose"/>
+<parameter id="ToolInBasePose"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="disp_results">
+<interface>
+<ic>
+<par name="WindowHandle" base_type="ctrl" dimension="0"/>
+<par name="CamCalibError" base_type="ctrl" dimension="0"/>
+<par name="Errors" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>dev_clear_window ()</l>
+<l>Message := 'Quality of the results:'</l>
+<l>disp_message (WindowHandle, Message, 'window', 12, 12, 'black', 'true')</l>
+<l>Message := 'Error of the camera calibration:      ' + CamCalibError$'6.4f' + ' pixel'</l>
+<l>disp_message (WindowHandle, Message, 'window', 52, 12, 'black', 'true')</l>
+<l>Message := 'Errors of the hand eye calibration:'</l>
+<l>disp_message (WindowHandle, Message, 'window', 92, 12, 'black', 'true')</l>
+<l>DispErrors := []</l>
+<l>DispErrors := [DispErrors,'                     |   RMS    |  Maximum |']</l>
+<l>DispErrors := [DispErrors,'|--------------------+----------+----------|']</l>
+<l>DispErrors := [DispErrors,'| Translational part | ' + (Errors[0] * 1e3)$'5.3f' + ' mm | ' + (Errors[2] * 1e3)$'5.3f' + ' mm |']</l>
+<l>DispErrors := [DispErrors,'| Rotational part    | ' + Errors[1]$'5.3f' + ' °  | ' + Errors[3]$'5.3f' + ' °  |']</l>
+<l>disp_message (WindowHandle, DispErrors, 'window', 132, 40, 'black', 'true')</l>
+<l>return ()</l>
+</body>
+<docu id="disp_results">
+<parameters>
+<parameter id="CamCalibError"/>
+<parameter id="Errors"/>
+<parameter id="WindowHandle"/>
+</parameters>
+</docu>
+</procedure>
+</hdevelop>
